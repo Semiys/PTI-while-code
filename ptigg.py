@@ -6,7 +6,11 @@ class CyclicCodeApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Изучение циклических кодов")
-        self.root.geometry("1200x800")
+        
+        # Устанавливаем полноэкранный режим
+        self.root.state('zoomed')  # для Windows
+        # Альтернатива для Linux/Mac:
+        # self.root.attributes('-zoomed', True)
         
         # Создание основных фреймов
         self.create_frames()
@@ -38,19 +42,50 @@ class CyclicCodeApp:
         self.message_entry = ttk.Entry(self.input_frame)
         self.message_entry.pack(fill="x", pady=5)
         
-        ttk.Label(self.input_frame, text="Выберите порождающий полином:").pack(anchor="w")
-        self.polynomial_var = tk.StringVar()
-        polynomials = ["x³ + x + 1", "x⁴ + x + 1", "x⁷ + x³ + 1"]
-        self.polynomial_combo = ttk.Combobox(self.input_frame, textvariable=self.polynomial_var, values=polynomials)
-        self.polynomial_combo.pack(fill="x", pady=5)
+        ttk.Label(self.input_frame, text="Выберите или введите порождающий полином:").pack(anchor="w")
         
-        # Переключатель режима
-        self.mode_var = tk.StringVar(value="study")
-        ttk.Label(self.input_frame, text="\nРежим работы:").pack(anchor="w")
-        ttk.Radiobutton(self.input_frame, text="Учебный режим", 
-                       variable=self.mode_var, value="study").pack(anchor="w")
-        ttk.Radiobutton(self.input_frame, text="Тестовый режим", 
-                       variable=self.mode_var, value="test").pack(anchor="w")
+        # Создаем frame для полиномов
+        poly_frame = ttk.Frame(self.input_frame)
+        poly_frame.pack(fill="x", pady=5)
+        
+        # Переменная для хранения способа ввода полинома
+        self.poly_input_mode = tk.StringVar(value="preset")
+        
+        # Радиокнопки для выбора способа ввода полинома
+        ttk.Radiobutton(poly_frame, text="Готовые полиномы", 
+                       variable=self.poly_input_mode, value="preset",
+                       command=self.switch_polynomial_input).pack(anchor="w")
+        ttk.Radiobutton(poly_frame, text="Свой полином", 
+                       variable=self.poly_input_mode, value="custom",
+                       command=self.switch_polynomial_input).pack(anchor="w")
+        
+        # Комбобокс с готовыми полиномами
+        self.polynomial_var = tk.StringVar()
+        polynomials = [
+            "x + 1",
+            "x² + x + 1",
+            "x³ + x + 1",
+            "x³ + x² + 1",
+            "x⁴ + x + 1",
+            "x⁴ + x³ + 1",
+            "x⁵ + x² + 1",
+            "x⁵ + x³ + 1",
+            "x⁶ + x + 1",
+            "x⁷ + x³ + 1",
+            "x⁸ + x⁴ + x³ + x² + 1",
+            "x⁹ + x⁴ + 1",
+            "x¹⁰ + x³ + 1"
+        ]
+        self.polynomial_combo = ttk.Combobox(poly_frame, textvariable=self.polynomial_var, 
+                                           values=polynomials, state="readonly")
+        self.polynomial_combo.pack(fill="x", pady=5)
+        self.polynomial_combo.set(polynomials[2])  # По умолчанию x³ + x + 1
+        
+        # Поле для ввода своего полинома
+        ttk.Label(poly_frame, text="Введите двоичное представление полинома:").pack(anchor="w")
+        self.custom_poly_entry = ttk.Entry(poly_frame)
+        self.custom_poly_entry.pack(fill="x", pady=5)
+        self.custom_poly_entry.config(state="disabled")
         
         # Кнопки управления
         ttk.Button(self.input_frame, text="Начать кодирование", 
@@ -68,7 +103,7 @@ class CyclicCodeApp:
         self.steps_text = tk.Text(self.steps_frame, wrap=tk.WORD, width=50, height=30)
         self.steps_text.pack(fill="both", expand=True)
         
-        # Область рез��льтатов
+        # Область результатов
         self.result_text = tk.Text(self.result_frame, wrap=tk.WORD, width=30, height=30)
         self.result_text.pack(fill="both", expand=True)
         
@@ -102,64 +137,126 @@ class CyclicCodeApp:
         self.next_step_button = ttk.Button(self.input_frame, text="Следующий шаг →", 
                                          command=self.next_step, state="disabled")
         self.next_step_button.pack(fill="x", pady=5)
+        
+        ttk.Label(poly_frame, text="Примеры примитивных полиномов:\n" +
+                  "11 (x + 1)\n" +
+                  "111 (x² + x + 1)\n" +
+                  "1011 (x³ + x + 1)\n" +
+                  "1101 (x³ + x² + 1)\n" +
+                  "10011 (x⁴ + x + 1)\n" +
+                  "11001 (x⁴ + x³ + 1)\n" +
+                  "100101 (x⁵ + x² + 1)\n" +
+                  "101001 (x⁵ + x³ + 1)\n" +
+                  "1000011 (x⁶ + x + 1)\n" +
+                  "10001001 (x⁷ + x³ + 1)",
+                  justify="left").pack(anchor="w", pady=5)
+        
+        # Добавляем кнопку выхода в нижней части input_frame
+        exit_button = ttk.Button(
+            self.input_frame,
+            text="Выход",
+            command=self.root.destroy
+        )
+        exit_button.pack(fill="x", pady=5)  # Такой же отступ, как у других кнопок
+        
+        # Создаем более заметный стиль для кнопки выхода
+        style = ttk.Style()
+        style.configure('Exit.TButton', 
+                       font=('Arial', 12, 'bold'),
+                       padding=10,
+                       background='#FF4444',  # Яркий красный цвет
+                       foreground='white',
+                       borderwidth=3,
+                       relief='raised')
+        
+        # Добавляем эффекты при наведении и нажатии
+        style.map('Exit.TButton',
+                  background=[('active', '#FF0000'),  # Более темный красный при наведении
+                             ('pressed', '#CC0000')], # Еще более темный при нажатии
+                  foreground=[('active', 'white'),
+                             ('pressed', 'white')])
 
-    def polynomial_to_binary(self, polynomial_str):
-        """Преобразует строковое представление полинома в бинарный массив коэффициентов"""
+    def polynomial_to_binary(self, poly_str):
+        """Преобразует строковое представление полинома в двоичный массив"""
         try:
-            # Для x³ + x + 1 должно получиться [1, 1, 0, 1]
-            # Для x⁴ + x + 1 должно получиться [1, 1, 0, 0, 1]
-            degrees = {'³': 3, '⁴': 4, '⁷': 7}
-            max_degree = 0
+            # Удаляем пробелы и приводим к нижнему регистру
+            poly_str = poly_str.replace(" ", "").lower()
             
-            # Находим максимальную степень
-            for c in polynomial_str:
-                if c in degrees:
-                    max_degree = max(max_degree, degrees[c])
+            # Если это уже двоичное число
+            if all(c in '01' for c in poly_str):
+                result = [int(bit) for bit in poly_str]
+                # Удаляем ведущие нули
+                while len(result) > 1 and result[0] == 0:
+                    result.pop(0)
+                return result
             
-            # Создаем массив нужной длины
-            result = [0] * (max_degree + 1)
-            result[max_degree] = 1  # Старший коэффициент
+            # Словарь примитивных полиномов
+            primitive_polynomials = {
+                "x+1": [1, 1],                    # x + 1
+                "x²+x+1": [1, 1, 1],             # x² + x + 1
+                "x³+x+1": [1, 0, 1, 1],          # x³ + x + 1
+                "x³+x²+1": [1, 1, 0, 1],         # x³ + x² + 1
+                "x⁴+x+1": [1, 0, 0, 1, 1],       # x⁴ + x + 1
+                "x⁴+x³+1": [1, 1, 0, 0, 1],      # x⁴ + x³ + 1
+                "x⁵+x²+1": [1, 0, 0, 1, 0, 1],   # x⁵ + x² + 1
+                "x⁵+x³+1": [1, 0, 1, 0, 0, 1],   # x⁵ + x³ + 1
+                "x⁶+x+1": [1, 0, 0, 0, 0, 1, 1], # x⁶ + x + 1
+                "x⁷+x³+1": [1, 0, 0, 0, 1, 0, 0, 1], # x⁷ + x³ + 1
+                "x⁸+x⁴+x³+x²+1": [1, 0, 0, 0, 1, 1, 1, 0, 1], # x⁸ + x⁴ + x³ + x² + 1
+                "x⁹+x⁴+1": [1, 0, 0, 0, 0, 1, 0, 0, 0, 1],    # x⁹ + x⁴ + 1
+                "x¹⁰+x³+1": [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1]  # x¹⁰ + x³ + 1
+            }
             
-            # Разбираем остальные члены
-            if '+ x + 1' in polynomial_str:
-                result[1] = 1  # коэффициент при x
-                result[0] = 1  # свободный член
-                
-            return result
+            # Нормализация строки для сравнения
+            normalized_str = poly_str.replace("^", "").replace(" ", "")
+            
+            # Поиск полинома в словаре
+            for key, value in primitive_polynomials.items():
+                if key.replace("^", "").replace(" ", "") == normalized_str:
+                    return value
+            
+            # Если полином не распознан, возвращаем полином по умолчанию
+            print(f"Неизвестный формат полинома: {poly_str}")
+            return [1, 0, 1, 1]  # x³ + x + 1 по умолчанию
+            
         except Exception as e:
             print(f"Ошибка в polynomial_to_binary: {str(e)}")
-            return [1, 1, 0, 1]  # возвращаем x³ + x + 1 по умолчанию
+            return [1, 0, 1, 1]  # возвращаем x³ + x + 1 по умолчанию
 
     def polynomial_division(self, dividend, divisor):
-        """Выполняет деление полиномов в GF(2)"""
+        """
+        Выполняет деление полиномов в GF(2)
+        dividend: список коэффициентов делимого полинома
+        divisor: список коэффициентов делителя
+        """
         try:
-            # Преобразуем входные данные в списки
-            dividend = list(dividend)  # Создаем копию делимого
+            # Создаем рабочую копию делимого
+            working = list(dividend)
+            n = len(working)
+            m = len(divisor)
             steps = []
+            steps.append(f"Начальное делимое: {working}")
             
-            # Записываем начальное состояние
-            steps.append(f"Делимое: {dividend}")
+            # Проходим по всем битам делимого до тех пор, пока не останется остаток нужной длины
+            for i in range(n - m + 1):
+                if working[i] == 1:  # Если текущий бит 1
+                    steps.append(f"Деление на позиции {i}")
+                    # Выполняем XOR с делителем на текущей позиции
+                    for j in range(m):
+                        working[i + j] ^= divisor[j]
+                    steps.append(f"Промежуточный результат: {working}")
+                    steps.append(f"XOR на позиции {i}: {divisor} с {working[i:i+m]}")
             
-            # Пока длина делимого больше или равна длине делителя
-            while len(dividend) >= len(divisor):
-                # Если старший разряд равен 1
-                if dividend[0] == 1:
-                    # Выполняем XOR с делителем
-                    for i in range(len(divisor)):
-                        if i < len(dividend):
-                            dividend[i] ^= divisor[i]
-                
-                steps.append(f"После вычитания: {dividend}")
-                
-                # Убираем ведущий ноль
-                if dividend and dividend[0] == 0:
-                    dividend.pop(0)
+            # Получаем остаток (последние m-1 бит)
+            remainder = working[-(m-1):]
             
-            # Дополняем остаток нулями слева до нужной длины
-            while len(dividend) < len(divisor) - 1:
-                dividend.insert(0, 0)
+            # Проверяем корректность деления
+            quotient_part = working[:-(m-1)]
+            if any(bit == 1 for bit in quotient_part):
+                steps.append(f"Внимание: остались ненулевые биты перед остатком: {quotient_part}")
             
-            return dividend, steps
+            steps.append(f"Финальный остаток: {remainder}")
+            return remainder, steps
             
         except Exception as e:
             print(f"Ошибка в polynomial_division: {str(e)}")
@@ -180,17 +277,20 @@ class CyclicCodeApp:
 
     def start_encoding(self):
         try:
-            # Получаем входные данные
-            message = self.message_entry.get()
-            if not self.validate_binary_input(message):
-                messagebox.showerror("Ошибка", "Введите корректное двоичное число!")
+            if not self.validate_input():
                 return
             
-            # Получаем порождающий полином
-            generator_poly = self.polynomial_to_binary(self.polynomial_var.get())
+            # Если включен пошаговый режим
+            if self.step_var.get():
+                self.current_step = 0
+                self.next_step_button.config(state="normal")
+                self.next_step()
+                return
             
-            # Преобразуем сообщение в список битов
+            # Обычный режим - выполняем все сразу
+            message = self.message_entry.get()
             message_bits = [int(bit) for bit in message]
+            generator_poly = self.get_generator_polynomial()
             
             # Добавляем нули к сообщению
             augmented_message = message_bits + [0] * (len(generator_poly) - 1)
@@ -202,23 +302,7 @@ class CyclicCodeApp:
             encoded_message = message_bits + remainder
             
             # Выводим результаты
-            self.steps_text.delete(1.0, tk.END)
-            self.result_text.delete(1.0, tk.END)
-            
-            self.steps_text.insert(tk.END, "Процесс кодирования:\n\n")
-            self.steps_text.insert(tk.END, f"1. Исходное сообщение: {message}\n")
-            self.steps_text.insert(tk.END, f"2. Порождающий полином: {self.polynomial_var.get()}\n")
-            self.steps_text.insert(tk.END, f"3. Двоичное представление полинома: {generator_poly}\n\n")
-            self.steps_text.insert(tk.END, "4. Процесс деления:\n")
-            
-            for step in steps:
-                self.steps_text.insert(tk.END, f"   {step}\n")
-            
-            result = ''.join(map(str, encoded_message))
-            self.steps_text.insert(tk.END, f"\n5. Результат кодирования: {result}\n")
-            
-            self.result_text.insert(tk.END, "Закодированное сообщение:\n")
-            self.result_text.insert(tk.END, f"{result}\n")
+            self.display_results(message_bits, generator_poly, steps, encoded_message)
             
         except Exception as e:
             print(f"Ошибка: {str(e)}")
@@ -286,12 +370,15 @@ class CyclicCodeApp:
                 file.write(self.result_text.get(1.0, tk.END))
                 
     def validate_binary_input(self, input_str):
+        """Проверяет, что входная строка содержит только 0 и 1"""
+        if not input_str:  # Проверка на пустую строку
+            return False
         return all(bit in '01' for bit in input_str)
 
     def show_theory(self):
         """Показывает теоретическую справку"""
         theory_window = tk.Toplevel(self.root)
-        theory_window.title("Теоретическая справ��а")
+        theory_window.title("Теоретическая справка")
         theory_window.geometry("600x400")
         
         text = tk.Text(theory_window, wrap=tk.WORD, padx=10, pady=10)
@@ -364,91 +451,236 @@ class CyclicCodeApp:
             self.steps_text.insert(tk.END, f"Загружен пример {example_num}:\n{example['description']}\n\n")
 
     def next_step(self):
-        """Выполняет следующий шаг  пошаговом режиме"""
+        """Выполняет следующий шаг в пошаговом режиме"""
         if not hasattr(self, 'current_step'):
             self.current_step = 0
-            
+        
         self.current_step += 1
+        
+        # Получаем данные для кодирования
+        message = self.message_entry.get()
+        message_bits = [int(bit) for bit in message]
+        generator_poly = self.get_generator_polynomial()
+        augmented_message = message_bits + [0] * (len(generator_poly) - 1)
+        
+        # Очищаем текстовые поля при первом шаге
         if self.current_step == 1:
-            self.show_encoding_step_1()
+            self.steps_text.delete(1.0, tk.END)
+            self.result_text.delete(1.0, tk.END)
+        
+        if self.current_step == 1:
+            # Шаг 1: Анализ входных данных
+            self.steps_text.insert(tk.END, "Шаг 1: Анализ входных данных\n\n")
+            self.steps_text.insert(tk.END, f"• Исходное сообщение: {message}\n")
+            self.steps_text.insert(tk.END, f"• Длина сообщения: {len(message)} бит\n")
+            poly_str = self.format_polynomial(message_bits)
+            self.steps_text.insert(tk.END, f"• Полиномиальное представление: {poly_str}\n")
+            
         elif self.current_step == 2:
-            self.show_encoding_step_2()
+            # Шаг 2: Анализ порождающего полинома
+            self.steps_text.insert(tk.END, "\nШаг 2: Анализ порождающего полинома\n\n")
+            self.steps_text.insert(tk.END, f"• Порождающий полином: {self.polynomial_var.get()}\n")
+            self.steps_text.insert(tk.END, f"• Двоичное представление: {generator_poly}\n")
+            
         elif self.current_step == 3:
-            self.show_encoding_step_3()
+            # Шаг 3: Подготовка к делению
+            self.steps_text.insert(tk.END, "\nШаг 3: Подготовка к делению\n\n")
+            self.steps_text.insert(tk.END, f"• Добавление {len(generator_poly)-1} нулей к сообщению\n")
+            self.steps_text.insert(tk.END, f"• Расширенное сообщение: {augmented_message}\n")
+            
         elif self.current_step == 4:
-            self.show_encoding_step_4()
-        else:
+            # Шаг 4: Выполнение деления
+            remainder, steps = self.polynomial_division(augmented_message, generator_poly)
+            self.steps_text.insert(tk.END, "\nШаг 4: Процесс деления\n\n")
+            for step in steps:
+                self.steps_text.insert(tk.END, f"• {step}\n")
+            
+        elif self.current_step == 5:
+            # Шаг 5: Финальный результат
+            remainder, _ = self.polynomial_division(augmented_message, generator_poly)
+            encoded_message = message_bits + remainder
+            self.steps_text.insert(tk.END, "\nШаг 5: Финальный результат\n\n")
+            self.steps_text.insert(tk.END, f"• Контрольные биты: {remainder}\n")
+            self.steps_text.insert(tk.END, f"• Закодированное сообщение: {encoded_message}\n")
+            
+            # Обновляем область результатов
+            self.result_text.delete(1.0, tk.END)
+            self.result_text.insert(tk.END, "Закодированное сообщение:\n")
+            self.result_text.insert(tk.END, f"{''.join(map(str, encoded_message))}\n")
+            
+            # Отключаем кнопку следующего шага
             self.next_step_button.config(state="disabled")
             self.current_step = 0
+            return
+        
+        # Активируем кнопку следующего шага
+        self.next_step_button.config(state="normal")
 
-    def show_encoding_step_1(self):
-        """Показывает первый шаг кодирования"""
-        message = self.message_entry.get()
-        self.steps_text.delete(1.0, tk.END)
-        self.steps_text.insert(tk.END, "Шаг 1: Анализ входных данных\n\n")
-        self.steps_text.insert(tk.END, f"• Исходное сообщение: {message}\n")
-        self.steps_text.insert(tk.END, f"• Длина сообщения: {len(message)} бит\n")
-        self.steps_text.insert(tk.END, "• Представление в виде полинома:\n")
-        
-        # Показываем полиномиальное представление сообщения
-        poly_terms = []
-        for i, bit in enumerate(reversed(message)):
-            if bit == '1':
-                if i == 0:
-                    poly_terms.append("1")
-                elif i == 1:
-                    poly_terms.append("x")
-                else:
-                    poly_terms.append(f"x^{i}")
-        poly_str = " + ".join(reversed(poly_terms)) if poly_terms else "0"
-        self.steps_text.insert(tk.END, f"  {poly_str}\n")
+    def switch_polynomial_input(self):
+        """Переключает между готовыми полиномами и пользовательским вводом"""
+        if self.poly_input_mode.get() == "preset":
+            self.polynomial_combo.config(state="normal")
+            self.custom_poly_entry.config(state="disabled")
+        else:
+            self.polynomial_combo.config(state="disabled")
+            self.custom_poly_entry.config(state="normal")
 
-    def show_encoding_step_2(self):
-        """Показывает второй шаг кодирования"""
-        generator_poly_str = self.polynomial_var.get()
-        generator_poly = self.polynomial_to_binary(generator_poly_str)
-        
-        self.steps_text.insert(tk.END, "\nШаг 2: Анализ порождающего полинома\n\n")
-        self.steps_text.insert(tk.END, f"• Выбранный полином: {generator_poly_str}\n")
-        self.steps_text.insert(tk.END, f"• Степень полинома: {len(generator_poly)-1}\n")
-        self.steps_text.insert(tk.END, f"• Двоичное представление: {generator_poly}\n")
-
-    def show_encoding_step_3(self):
-        """Показывает третий шаг кодирования"""
-        message = self.message_entry.get()
-        generator_poly = self.polynomial_to_binary(self.polynomial_var.get())
-        
-        message_bits = [int(bit) for bit in message]
-        zeros = [0] * (len(generator_poly) - 1)
-        augmented_message = message_bits + zeros
-        
-        self.steps_text.insert(tk.END, "\nШаг 3: Подготовка сообщения\n\n")
-        self.steps_text.insert(tk.END, f"• Исходное сообщение: {message_bits}\n")
-        self.steps_text.insert(tk.END, f"• Добавляем {len(zeros)} нулей: {augmented_message}\n")
-
-    def show_encoding_step_4(self):
-        """Показывает четвертый шаг кодирования и финальный результат"""
-        message = self.message_entry.get()
-        generator_poly = self.polynomial_to_binary(self.polynomial_var.get())
-        
-        message_bits = [int(bit) for bit in message]
-        zeros = [0] * (len(generator_poly) - 1)
-        augmented_message = message_bits + zeros
-        
-        remainder, division_steps = self.polynomial_division(augmented_message, generator_poly)
-        encoded_message = message_bits + remainder
-        
-        self.steps_text.insert(tk.END, "\nШаг 4: Получение контрольных битов\n\n")
-        for step in division_steps:
-            self.steps_text.insert(tk.END, f"• {step}\n")
+    def validate_polynomial(self, polynomial):
+        """
+        Проверяет корректность полинома
+        polynomial: список коэффициентов полинома или строка
+        Возвращает: (bool, str) - (валиден ли полином, сообщение об ошибке)
+        """
+        try:
+            # Если передана строка, преобразуем её в список
+            if isinstance(polynomial, str):
+                polynomial = [int(bit) for bit in polynomial]
             
-        self.steps_text.insert(tk.END, "\nФинальный результат:\n")
-        self.steps_text.insert(tk.END, f"• Закодированное сообщение: {''.join(map(str, encoded_message))}\n")
+            if polynomial is None:
+                return False, "Полином не может быть None"
+            
+            if not polynomial:
+                return False, "Полином не может быть пустым"
+            
+            if len(polynomial) < 2:
+                return False, "Полином должен иметь степень не менее 1"
+            
+            # Проверяем, что все элементы - биты
+            if not all(bit in (0, 1) for bit in polynomial):
+                return False, "Полином должен содержать только биты (0 или 1)"
+            
+            # Проверяем первый бит сразу
+            if polynomial[0] != 1:
+                return False, "Старший коэффициент должен быть равен 1"
+            
+            return True, ""
+            
+        except Exception as e:
+            return False, f"Ошибка при валидации полинома: {str(e)}"
+
+    def get_generator_polynomial(self):
+        """Получает порождающий полином в зависимости от выбранного режима"""
+        if self.poly_input_mode.get() == "preset":
+            return self.polynomial_to_binary(self.polynomial_var.get())
+        else:
+            poly_str = self.custom_poly_entry.get().strip()
+            is_valid, error_msg = self.validate_polynomial(poly_str)
+            if not is_valid:
+                raise ValueError(error_msg)
+            
+            # Преобразуем в список битов и удаляем ведущие нули
+            poly = [int(bit) for bit in poly_str]
+            while len(poly) > 1 and poly[0] == 0:
+                poly.pop(0)
+            
+            return poly
+
+    def is_primitive_polynomial(self, poly):
+        """
+        Проверяет, является ли полином примитивным
+        """
+        # Словарь известных примитивных полиномов
+        primitive_polynomials = {
+            2: [[1, 1]],                    # x + 1
+            3: [[1, 1, 1]],                # x² + x + 1
+            4: [[1, 0, 1, 1], [1, 1, 0, 1]], # x³ + x + 1, x³ + x² + 1
+            5: [[1, 0, 0, 1, 1], [1, 1, 0, 0, 1]], # x⁴ + x + 1, x⁴ + x³ + 1
+            6: [[1, 0, 0, 1, 0, 1], [1, 0, 1, 0, 0, 1]], # x⁵ + x² + 1, x⁵ + x³ + 1
+            7: [[1, 0, 0, 0, 0, 1, 1]], # x⁶ + x + 1
+            8: [[1, 0, 0, 0, 1, 0, 0, 1]], # x⁷ + x³ + 1
+            9: [[1, 0, 0, 0, 1, 1, 1, 0, 1]], # x⁸ + x⁴ + x³ + x² + 1
+            10: [[1, 0, 0, 0, 0, 1, 0, 0, 0, 1]], # x⁹ + x⁴ + 1
+            11: [[1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1]] # x¹⁰ + x³ + 1
+        }
         
-        # Обновляем область результатов
-        self.result_text.delete(1.0, tk.END)
-        self.result_text.insert(tk.END, "Закодированное сообщение:\n")
-        self.result_text.insert(tk.END, f"{''.join(map(str, encoded_message))}\n")
+        # Получаем длину полинома
+        n = len(poly)
+        
+        # Проверяем, есть ли полином такой длины в словаре
+        if n in primitive_polynomials:
+            # Проверяем, совпадает ли полином с одним из известных примитивных полиномов
+            return poly in primitive_polynomials[n]
+        
+        return False
+
+    def validate_input(self):
+        """Проверяет корректность входных данных"""
+        message = self.message_entry.get()
+        
+        # Проверка на пустое сообщение
+        if not message:
+            messagebox.showerror("Ошибка", "Введите сообщение!")
+            return False
+        
+        # Проверка на двоичный формат
+        if not self.validate_binary_input(message):
+            messagebox.showerror("Ошибка", "Сообщение должно содержать только 0 и 1!")
+            return False
+        
+        # Получаем порождающий полином
+        try:
+            generator_poly = self.get_generator_polynomial()
+        except ValueError as e:
+            messagebox.showerror("Ошибка", str(e))
+            return False
+        
+        # Проверка длины сообщения
+        if len(message) < len(generator_poly) - 1:
+            messagebox.showerror("Ошибка", 
+                               "Длина сообщения должна быть не меньше степени полинома!")
+            return False
+        
+        # Проверка примитивности полинома
+        if not self.is_primitive_polynomial(generator_poly):
+            messagebox.showwarning("Предупреждение", 
+                                 "Выбранный полином не является примитивным!")
+        
+        return True
+
+    def display_results(self, message_bits, generator_poly, steps, encoded_message):
+        """Отображает результаты кодирования"""
+        try:
+            # Очищаем текстовые поля
+            self.steps_text.delete(1.0, tk.END)
+            self.result_text.delete(1.0, tk.END)
+            
+            # Отображаем пошаговое выполнение
+            self.steps_text.insert(tk.END, "Процесс кодирования:\n\n")
+            self.steps_text.insert(tk.END, f"1. Исходное сообщение: {message_bits}\n")
+            self.steps_text.insert(tk.END, f"2. Порождающий полином: {generator_poly}\n")
+            
+            # Отображаем шаги деления
+            self.steps_text.insert(tk.END, "\n3. Процесс деления:\n")
+            for step in steps:
+                self.steps_text.insert(tk.END, f"   {step}\n")
+            
+            # Отображаем результат
+            self.result_text.insert(tk.END, "Закодированное сообщение:\n")
+            self.result_text.insert(tk.END, f"{''.join(map(str, encoded_message))}\n")
+            
+            # Если полином не примитивный, показываем предупреждение
+            if not self.is_primitive_polynomial(generator_poly):
+                self.steps_text.insert(tk.END, "\nПредупреждение: Используемый полином не является примитивным!\n")
+            
+        except Exception as e:
+            print(f"Ошибка в display_results: {str(e)}")
+            messagebox.showerror("Ошибка", f"Ошибка при отображении результатов: {str(e)}")
+
+    def convert_to_bits(self, input_data):
+        """
+        Преобразует входные данные в список битов
+        input_data: строка или список
+        """
+        if isinstance(input_data, list):
+            return input_data
+        
+        if isinstance(input_data, str):
+            # Убираем префикс 0b если есть
+            if input_data.startswith('0b'):
+                input_data = input_data[2:]
+            return [int(bit) for bit in input_data]
+        
+        raise ValueError(f"Неподдерживаемый формат входных данных: {type(input_data)}")
 
 if __name__ == "__main__":
     root = tk.Tk()
